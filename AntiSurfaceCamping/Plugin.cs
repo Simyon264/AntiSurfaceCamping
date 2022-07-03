@@ -64,7 +64,7 @@ namespace AntiSurfaceCamping
         {
             if (Round.IsStarted)
             {
-                if (player.IsDead && player.Role.Team == Team.SCP)
+                if (player.IsDead || player.Role.Team == Team.SCP)
                 {
                     SurfaceTime = 0;
                     return;
@@ -156,7 +156,7 @@ namespace AntiSurfaceCamping
         public override string Name { get; } = "AntiSurfaceCamping";
         public override string Prefix { get; } = "asc";
         public override string Author { get; } = "Simyon";
-        public override Version Version { get; } = new Version(1, 0, 1);
+        public override Version Version { get; } = new Version(1, 0, 2);
         public override PluginPriority Priority { get; } = PluginPriority.High;
 
         private static readonly Plugin InstanceValue = new Plugin();
