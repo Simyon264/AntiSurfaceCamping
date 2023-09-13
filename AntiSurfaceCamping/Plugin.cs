@@ -11,15 +11,14 @@
 using System;
 using Exiled.API.Interfaces;
 using Exiled.API.Features;
-using Exiled.Events.EventArgs;
 using Exiled.API.Enums;
 using Handlers = Exiled.Events.Handlers;
 using System.Collections.Generic;
 using MEC;
 using UnityEngine;
-using Random = System.Random;
 using System.ComponentModel;
-using Exiled.Permissions.Extensions;
+using Exiled.Events.EventArgs.Player;
+using PlayerRoles;
 
 namespace AntiSurfaceCamping
 {
@@ -28,33 +27,38 @@ namespace AntiSurfaceCamping
         public Plugin plugin;
         public bool disabled = false;
 
-        Player player;
+        public Player player;
 
         public float delay = 1.0f;
-        private float timer = 0.0f;
+
+        public bool clearTimer = false;
 
         public int SurfaceTime = 0; // How long a player has been on the Surface zone.
 
         void Awake()
         {
             player = Player.Get(gameObject);
+            Timing.RunCoroutine(Timer());
         }
 
-        void Update()
+
+        public IEnumerator<float> Timer()
         {
-            timer += Time.deltaTime;
-            if (timer > delay)
+            for(; ; )
             {
-                timer = 0.0f;
-                if (!this.disabled)
+                yield return Timing.WaitForSeconds(delay);
+                if (this.player != null)
                 {
-                    try
+                    if (!this.disabled)
                     {
-                        CampingChecker();
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error(ex);
+                        try
+                        {
+                            CampingChecker();
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex);
+                        }
                     }
                 }
             }
@@ -62,61 +66,79 @@ namespace AntiSurfaceCamping
 
         private void CampingChecker()
         {
+            if (SurfaceTime < 0)
+            {
+                SurfaceTime = 1;
+            }
+
+            if (clearTimer)
+            {
+                SurfaceTime = 0;
+                clearTimer = false;
+            }
+
             if (Round.IsStarted)
             {
-                if (player.IsDead || player.Role.Team == Team.SCP)
+                if (player.IsDead || player.Role.Team == Team.SCPs)
                 {
                     SurfaceTime = 0;
                     return;
                 }
-                //Log.Info($"Checking {player.Nickname}");
-                if (player.Zone == ZoneType.Surface)
+                Log.Debug($"Checking {player.Nickname}");
+                try
                 {
-                    //Log.Info($"{player.Nickname} is in Surface Zone");
-                    if (plugin.Config.immuneRoles.Contains(player.Role))
+                    if (player.Zone == ZoneType.Surface)
                     {
-                        //Log.Info($"{player.Nickname} is a immune Role.");
-                        SurfaceTime = 0;
-                        return;
-                    }
-                    if (Warhead.IsInProgress || Warhead.IsDetonated)
-                    {
-                        if (plugin.Config.DisableIfWarhead)
+                        Log.Debug($"{player.Nickname} is in Surface Zone");
+                        if (plugin.Config.immuneRoles.Contains(player.Role))
                         {
-                            //Log.Info($"{player.Nickname} Warhead is on.");
+                            Log.Debug($"{player.Nickname} is a immune Role.");
                             SurfaceTime = 0;
                             return;
                         }
-                    }
-                    if (plugin.IsSCPOnSurface() && plugin.Config.DisableIfSCPOnSurface)
-                    {
-                        //Log.Info($"{player.Nickname} SCP is on the surface.");
-                        SurfaceTime = 0;
-                        return;
-                    }
-                    SurfaceTime++;
-                    //Log.Info($"{player.Nickname}: {SurfaceTime}");
-                    if (SurfaceTime >= plugin.Config.TimeUntilNotice && SurfaceTime <= plugin.Config.TimeUntilDamage)
-                    {
-                        player.Broadcast(1, plugin.Config.NoticeMessage);
-                    }
-                    if (SurfaceTime >= plugin.Config.TimeUntilDamage)
-                    {
-                        if (SurfaceTime >= plugin.Config.TimeUntilFatalDamage)
+                        if (Warhead.IsInProgress || Warhead.IsDetonated)
                         {
-                            player.Hurt(plugin.Config.FatalDamage, DamageType.Decontamination);
-                            player.Broadcast(1, plugin.Config.FatalDamageMessage);
+                            if (plugin.Config.DisableIfWarhead)
+                            {
+                                Log.Debug($"{player.Nickname} Warhead is on.");
+                                SurfaceTime--;
+                                return;
+                            }
                         }
-                        else
+                        if (plugin.IsSCPOnSurface() && plugin.Config.DisableIfSCPOnSurface)
                         {
-                            player.Hurt(plugin.Config.Damage, DamageType.Decontamination);
-                            player.Broadcast(1, plugin.Config.DamageMessage);
+                            Log.Debug($"{player.Nickname} SCP is on the surface.");
+                            SurfaceTime--;
+                            return;
                         }
+                        SurfaceTime++;
+                        Log.Debug($"{player.Nickname}: {SurfaceTime}");
+                        if (SurfaceTime >= plugin.Config.TimeUntilNotice && SurfaceTime <= plugin.Config.TimeUntilDamage)
+                        {
+                            player.Broadcast(1, plugin.Config.NoticeMessage);
+                        }
+                        if (SurfaceTime >= plugin.Config.TimeUntilDamage)
+                        {
+                            if (SurfaceTime >= plugin.Config.TimeUntilFatalDamage)
+                            {
+                                player.Hurt(plugin.Config.FatalDamage, DamageType.Decontamination);
+                                player.Broadcast(1, plugin.Config.FatalDamageMessage);
+                            }
+                            else
+                            {
+                                player.Hurt(plugin.Config.Damage, DamageType.Decontamination);
+                                player.Broadcast(1, plugin.Config.DamageMessage);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        SurfaceTime--;
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    SurfaceTime = 0;
+                    Log.Debug(ex);
                 }
             }
         }
@@ -124,6 +146,9 @@ namespace AntiSurfaceCamping
     public class Config : IConfig
     {
         public bool IsEnabled { get; set; } = true;
+        [Description("If debug mode is enabled. When enabled, the plugin will log debug messages to the console. DON'T USE WITH MORE THEN 1 PLAYER, CONSOLE WILL FLOOD.")]
+        public bool Debug { get; set; }
+
         [Description("The damage camping players get.")]
         public float Damage { get; set; } = 0.5f;
         [Description("The time until the player will be notified that they will start getting damage soon.")]
@@ -146,17 +171,18 @@ namespace AntiSurfaceCamping
         public float FatalDamage { get; set; } = 5f;
 
         [Description("Roles which dont get camping checked.")]
-        public List<RoleType> immuneRoles { get; set; } = new List<RoleType>()
+        public List<RoleTypeId> immuneRoles { get; set; } = new List<RoleTypeId>()
         {
-            { RoleType.Tutorial }
+            { RoleTypeId.Tutorial }
         };
+
     }
     public class Plugin : Plugin<Config>
     {
         public override string Name { get; } = "AntiSurfaceCamping";
         public override string Prefix { get; } = "asc";
         public override string Author { get; } = "Simyon";
-        public override Version Version { get; } = new Version(1, 0, 2);
+        public override Version Version { get; } = new Version(1, 0, 4);
         public override PluginPriority Priority { get; } = PluginPriority.High;
 
         private static readonly Plugin InstanceValue = new Plugin();
@@ -174,21 +200,25 @@ namespace AntiSurfaceCamping
         public override void OnEnabled()
         {
             Handlers.Player.Verified += OnPlayerVerified;
-
+            Handlers.Player.ChangingRole += OnRoleChange;
+            Handlers.Player.Dying += OnDeath;
+            
             base.OnEnabled();
         }
 
         public override void OnDisabled()
         {
             Handlers.Player.Verified -= OnPlayerVerified;
+            Handlers.Player.ChangingRole -= OnRoleChange;
+            Handlers.Player.Dying -= OnDeath;
 
             base.OnDisabled();
         }
 
         public bool IsSCPOnSurface()
         {
-            //Log.Info($"{Round.ElapsedTime.TotalSeconds} ROUND TIME");
-            //Log.Info($"{LastSCPCheck} LAST CHECK");
+            Log.Debug($"{Round.ElapsedTime.TotalSeconds} ROUND TIME");
+            Log.Debug($"{LastSCPCheck} LAST CHECK");
             if (Round.ElapsedTime.TotalSeconds < LastSCPCheck + 3)
             {
                 return LastSCPOnSurface;
@@ -197,7 +227,7 @@ namespace AntiSurfaceCamping
                 bool isScpOnSuface = false;
                 foreach (Player player in Player.List)
                 {
-                    if (player.Role.Team == Team.SCP)
+                    if (player.Role.Team == Team.SCPs)
                     {
                         if (player.Zone == ZoneType.Surface)
                         {
@@ -211,10 +241,31 @@ namespace AntiSurfaceCamping
             }
         }
 
+        public void OnDeath(DyingEventArgs ev)
+        {
+            AntiSurface comp = ev.Player.GameObject.GetComponent<AntiSurface>();
+            comp.player = ev.Player;
+            comp.SurfaceTime = 0;
+            comp.disabled = true;
+        }
+
         public void OnPlayerVerified(VerifiedEventArgs ev)
         {
             AntiSurface comp = ev.Player.GameObject.AddComponent<AntiSurface>();
+            comp.player = ev.Player;
             comp.plugin = StaticInstance;
+        }
+
+        public void OnRoleChange(ChangingRoleEventArgs ev)
+        {
+            AntiSurface comp = ev.Player.GameObject.GetComponent<AntiSurface>();
+            comp.player = ev.Player;
+            if (ev.NewRole != RoleTypeId.None || ev.NewRole != RoleTypeId.Spectator)
+            {
+                comp.clearTimer = true;
+                comp.SurfaceTime = 0;
+                comp.disabled = false;
+            }
         }
     }
 }

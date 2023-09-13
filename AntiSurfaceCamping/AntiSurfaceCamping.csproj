@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net4.7.2</TargetFramework>
+    <TargetFramework>net4.8</TargetFramework>
   </PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="EXILED" Version="5.2.1" />
+		<PackageReference Include="EXILED" Version="8.2.1" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -18,6 +18,9 @@
 	  <Reference Include="System.Threading" />
 	  <Reference Include="UnityEngine.CoreModule">
 	    <HintPath>..\..\exiled\UnityEngine.CoreModule.dll</HintPath>
+	  </Reference>
+	  <Reference Include="UnityEngine.PhysicsModule">
+	    <HintPath>..\..\Achievements\ShadowMain\bin\Debug\net4.8\UnityEngine.PhysicsModule.dll</HintPath>
 	  </Reference>
 	</ItemGroup>
 </Project>
