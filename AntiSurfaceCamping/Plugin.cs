@@ -182,7 +182,7 @@ namespace AntiSurfaceCamping
         public override string Name { get; } = "AntiSurfaceCamping";
         public override string Prefix { get; } = "asc";
         public override string Author { get; } = "Simyon";
-        public override Version Version { get; } = new Version(1, 0, 4);
+        public override Version Version { get; } = new Version(1, 1, 0);
         public override PluginPriority Priority { get; } = PluginPriority.High;
 
         private static readonly Plugin InstanceValue = new Plugin();
@@ -259,13 +259,14 @@ namespace AntiSurfaceCamping
         public void OnRoleChange(ChangingRoleEventArgs ev)
         {
             AntiSurface comp = ev.Player.GameObject.GetComponent<AntiSurface>();
+            if (comp == null) return;
             comp.player = ev.Player;
-            if (ev.NewRole != RoleTypeId.None || ev.NewRole != RoleTypeId.Spectator)
-            {
-                comp.clearTimer = true;
-                comp.SurfaceTime = 0;
-                comp.disabled = false;
-            }
+            if (ev.NewRole == null) return;
+            if (ev.NewRole == RoleTypeId.None && ev.NewRole == RoleTypeId.Spectator) return;
+            
+            comp.clearTimer = true;
+            comp.SurfaceTime = 0;
+            comp.disabled = false;
         }
     }
 }
