@@ -182,7 +182,7 @@ namespace AntiSurfaceCamping
         public override string Name { get; } = "AntiSurfaceCamping";
         public override string Prefix { get; } = "asc";
         public override string Author { get; } = "Simyon";
-        public override Version Version { get; } = new Version(1, 1, 0);
+        public override Version Version { get; } = new Version(1, 1, 1);
         public override PluginPriority Priority { get; } = PluginPriority.High;
 
         private static readonly Plugin InstanceValue = new Plugin();
